@@ -11,7 +11,7 @@ from core.utils.exception import WebsocketClosedException, ProxyForbiddenExcepti
 
 import os, base64
 
-from data.config import USE_2XNODE
+from data.config import NODE_TYPE
 
 
 class GrassWs:
@@ -82,11 +82,15 @@ class GrassWs:
                 "timestamp": int(time.time()),
                 "device_type": "extension",
                 "version": "4.26.2",
-                "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
+                "extension_id": "ilehaonighjijnmpnagapkhpcdbhclfg"
             }
         }
 
-        if USE_2XNODE:
+        if NODE_TYPE == "1_25x":
+            message['result'].update({
+                "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi",
+            })
+        elif NODE_TYPE == "2x":
             message['result'].update({
                 "device_type": "desktop",
                 "version": "4.28.2",
@@ -129,10 +133,11 @@ class GrassWs:
         method = request_data['method']
         url = request_data['url']
         headers = request_data['headers']
-        body = request_data.get("body") # there may be no body
+        body = request_data.get("body")  # there may be no body
 
         if body:
-            body = b64decode(body) # this will probably be in json format when decoded but i dont think there is a need to turn it to a json
+            body = b64decode(
+                body)  # this will probably be in json format when decoded but i dont think there is a need to turn it to a json
 
         try:
             response = await self.session.request(method, url,
@@ -140,14 +145,13 @@ class GrassWs:
 
             if response:
                 response.raise_for_status()
-                response_headers_raw = response.headers.multi_items()
+                response_headers_raw = response.headers
                 response_headers = dict(response_headers_raw)
-                response_body = response.content
+                response_body = await response.content.read()
                 status_reason = response.reason
-                status_code = response.status_code
+                status_code = response.status
                 encoded_body = b64encode(response_body)
                 encoded_body_as_str = encoded_body.decode('utf-8')
-
                 return {
                     "body": encoded_body_as_str,
                     "headers": response_headers,
@@ -156,6 +160,6 @@ class GrassWs:
                     "url": url
                 }
 
-        except Exception:
+        except Exception as e:
             # return this if anything happened
-            return {} # return an empty string if we have issues running the request
+            return {}  # return an empty string if we have issues running the request
